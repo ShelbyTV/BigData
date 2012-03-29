@@ -1,0 +1,15 @@
+BigData - Scalable processing of Shelby data
+
+The Shelby database has a lot of valuable data. Code contained here aims to process that data into a usable form.
+
+Some applications may include:
+
+ - video recommendations
+ - users-to-follow recommendations
+ - video sharing statistics
+ - trending topics
+ - etc.
+
+The intention is that the code in this repository remain focused on processing Shelby database data and turning it into usable information.
+
+Ideally, the code to display and/or perform additional manipulations of the processed data would be stored elsewhere.
