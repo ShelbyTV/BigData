@@ -14,6 +14,9 @@
 # -rw-r--r-- 1 nos nos 9.3G 2012-03-29 23:20 broadcasts_all_fields.json
 # -rw-r--r-- 1 nos nos 8.1G 2012-03-29 23:47 broadcasts_all_fields_uniq1.json
 # -rw-r--r-- 1 nos nos 4.8G 2012-03-30 01:14 broadcastsPreProcessed.json
+# -rw-r--r-- 1 nos nos 4.8G 2012-03-30 05:49 broadcastsPreProcessed2.json
+# -rw-r--r-- 1 nos nos 4.8G 2012-03-30 05:55 broadcastsPreProcessed3.json
+# -rw-r--r-- 1 nos nos 4.8G 2012-03-30 06:05 broadcastsPreProcessed4.json
 
 mongodump --port 27018 --db nos-production --collection broadcasts --out .
 
@@ -37,6 +40,15 @@ uniq broadcasts_all_fields.json broadcasts_all_fields_uniq1.json
 split -l 1000000 broadcasts_all_fields_uniq1.json
 for f in x*; do sort -u "$f" > "$f"_sorted; done
 sort -um x*_sorted > broadcastsPreProcessed.json
+
+# Get rid of null entries
+grep -v ": null" broadcastsPreProcessed.json > broadcastsPreProcessed2.json
+
+# Get rid of bookmarklet, search, extension, etc. and focus on real shares
+awk '/\"twitter\"/||/\"facebook\"/||/\"tumblr\"/' broadcastsPreProcessed2.json > broadcastsPreProcessed3.json
+
+# Get rid of blank values
+grep -v ': \"\",' broadcastsPreProcessed3.json > broadcastsPreProcessed4.json
 
 # Delete everything but broadcastsPreProcessed.json
 rm x*
