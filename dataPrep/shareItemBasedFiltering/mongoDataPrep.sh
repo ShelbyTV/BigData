@@ -55,3 +55,46 @@ rm x*
 rm broadcasts.json
 rm broadcasts_all*.json
 
+# Generate CSV file? This is the order I did this originally in, but might not need the above uniq, sorting steps...
+./csv.py
+
+# Mongo keys get dumped in different orders, so any above sort -u'ing might still leave dups behind
+sort -u broadcasts.csv > broadcasts_unique.csv
+
+# Now we're ready for running things on Amazon Web Services Elastic MapReduce (heretofore known as AWS EMR).
+# 
+# Best to have 3 separate s3 buckets
+#
+# Mahout job jar bucket
+# Mahout job input bucket
+# Mahout job output bucket
+#
+# Example:
+#
+# s3cmd ls
+#
+# 2012-03-30 19:24  s3://mahoutjobinput
+# 2012-03-30 19:23  s3://mahoutjobjar
+# 2012-03-30 19:24  s3://mahoutjoboutput
+# 
+# s3cmd ls s3://mahoutjobinput
+# 2012-04-02 19:55 221967615   s3://mahoutjobinput/broadcasts.csv
+# 
+# s3cmd ls s3://mahoutjobjar
+# 2012-03-30 19:25  11190212   s3://mahoutjobjar/mahout-core-0.6-job.jar
+# 
+# AWS EMR:
+# 
+#  * run custom jar
+#  * s3://mahoutjobjar/mahout-core-0.6-job.jar
+#  * org.apache.mahout.cf.taste.hadoop.similarity.item.ItemSimilarityJob 
+#       --input s3://mahoutjobinput/broadcasts.csv 
+#       --output s3://mahoutjoboutput/tanimoto 
+#       --similarityClassname SIMILARITY_TANIMOTO_COEFFICIENT 
+#       --maxSimilaritiesPerItem 5 
+#       --minPrefsPerUser 2 
+#       --booleanData
+# 
+# NOTE: 
+#  - AWS EMR requires weird S3 naming -- no capital letters or weird characters... best to stick with just lowercase letters, probably
+#  - output directory must be a directory that doesn't exist yet
