@@ -20,9 +20,17 @@ private:
 
    bool populateUserAndItemVectors(const std::string &inputCSV);
    void calculateTotalUsers();
+   void sortItemToUsersVectorsWorkerThread(const unsigned int threadID,
+                                           const unsigned int numThreads);
+
    void sortItemToUsersVectors(const unsigned int numThreads);
-   void generateAndOutputRecommendedItems(const unsigned int mod, 
-                                          const unsigned int which);
+   void generateAndOutputRecommendations(const unsigned int numThreads,
+                                         const unsigned int numRecs,
+                                         const std::string &outputFile);
+   void generateRecsWorkerThread(const unsigned int threadID, 
+                                 const unsigned int numThreads,
+                                 const unsigned int numRecs,
+                                 const std::string &outputFileName);
 
    unsigned int totalUsers;
    std::vector< std::vector<unsigned int> > itemsToUsers; 

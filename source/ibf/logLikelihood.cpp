@@ -5,6 +5,21 @@
 
 using namespace std;
 
+class Counter {
+public:
+  unsigned int n;
+
+  Counter(unsigned int n = 0) : n(n) {}
+  Counter(Counter const& other) : n(other.n) {}
+  Counter& operator* () { return *this; }
+
+  template <typename T>
+  Counter& operator= (T const&) { return *this; }
+  Counter& operator= (Counter const& other) { n = other.n; return *this; }
+  Counter& operator++ () { ++n; return *this; }
+  Counter& operator++ (int) { return ++(*this); }
+};
+
 double LogLikelihood::xLogX(unsigned int x)
 {
    return x == 0 ? 0.0 : (double)x * log((double)x);
@@ -31,14 +46,15 @@ double LogLikelihood::ratio(const vector<unsigned int> &one,
    unsigned int numUsersWhoSharedOne = one.size();
    unsigned int numUsersWhoSharedTwo = two.size();
 
-   set<unsigned int> intersection;
+   // don't waste time creating intersection set, we just need the count
+   Counter counter;
    set_intersection(one.begin(), 
                     one.end(), 
                     two.begin(), 
                     two.end(), 
-                    inserter(intersection, intersection.end()));
+                    counter);
 
-   unsigned int k11 = intersection.size(); // both together
+   unsigned int k11 = counter.n; // both together
    unsigned int k12 = numUsersWhoSharedTwo - k11; // two, not one
    unsigned int k21 = numUsersWhoSharedOne - k11; // one, not two
    unsigned int k22 = total - (k12 + k21 + k11); // otherwise
