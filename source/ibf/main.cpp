@@ -4,6 +4,7 @@
 #include <string>
 #include <getopt.h>
 #include <stdlib.h>
+#include <limits>
 
 using namespace std;
 
@@ -12,6 +13,8 @@ static struct Options {
    string outputFile;
    unsigned int threads;
    unsigned int recs;
+   unsigned int particularUser;
+   unsigned int particularItem;
 } options; 
 
 void printHelpText()
@@ -22,6 +25,8 @@ void printHelpText()
    cout << "   -o --output     Specify output file" << endl;
    cout << "   -t --threads    Number of threads to use while running" << endl;
    cout << "   -r --recs       Number of recommendationds to provider per item" << endl;
+   cout << "   -u --user       Output recommendations for a particular user; cannot be combined with -m" << endl;
+   cout << "   -m --item       Output recommendations for a particular item; cannot be combined with -u" << endl;
 }
 
 void parseUserOptions(int argc, char **argv)
@@ -36,11 +41,13 @@ void parseUserOptions(int argc, char **argv)
          {"output",  required_argument, 0, 'o'},
          {"threads", required_argument, 0, 't'},
          {"recs",    required_argument, 0, 'r'},
+         {"user",    required_argument, 0, 'u'},
+         {"item",    required_argument, 0, 'm'},
          {0, 0, 0, 0}
       };
       
       int option_index = 0;
-      c = getopt_long(argc, argv, "hi:o:t:r:", long_options, &option_index);
+      c = getopt_long(argc, argv, "hi:o:t:r:u:m:", long_options, &option_index);
    
       /* Detect the end of the options. */
       if (c == -1) {
@@ -64,6 +71,14 @@ void parseUserOptions(int argc, char **argv)
          case 'r':
             options.recs = atoi(optarg);
             break;
+    
+         case 'u':
+            options.particularUser = atoi(optarg);
+            break;
+
+         case 'm':
+            options.particularItem = atoi(optarg);
+            break;
         
          case 'h': 
          case '?':
@@ -75,7 +90,16 @@ void parseUserOptions(int argc, char **argv)
 
    if (optind < argc || options.recs == 0 || options.threads == 0) {
       printHelpText();
-      abort();
+      exit(1);
+   }
+}
+
+void checkOptions()
+{
+   if (options.particularUser != numeric_limits<unsigned int>::max() &&
+       options.particularItem != numeric_limits<unsigned int>::max()) {
+      printHelpText();
+      exit(1);
    }
 }
 
@@ -85,11 +109,23 @@ void performIBF()
   
    if (!ibf.parseInputFile(options.inputFile)) {
       exit(1);
-   }
+   }   
 
-   ibf.outputRecommendations(options.threads,
-                             options.recs,
-                             options.outputFile);
+   if (options.particularUser != numeric_limits<unsigned int>::max()) {
+      ibf.outputUserRecommendations(options.particularUser,
+                                    options.threads,
+				    options.recs,
+				    options.outputFile);
+   } else if (options.particularItem != numeric_limits<unsigned int>::max()) {
+      ibf.outputItemRecommendations(options.particularItem,
+                                    options.threads,
+                                    options.recs,
+                                    options.outputFile); 
+   } else {
+      ibf.outputAllRecommendations(options.threads,
+                                   options.recs,
+                                   options.outputFile);
+   }
 }
 
 int main(int argc, char **argv)
@@ -99,8 +135,13 @@ int main(int argc, char **argv)
    options.outputFile = "output";
    options.threads = 1;
    options.recs = 20;
+   options.particularUser = numeric_limits<unsigned int>::max();
+   options.particularItem = numeric_limits<unsigned int>::max();
 
    parseUserOptions(argc, argv);
+
+   checkOptions();
+
    performIBF();
    
    return 0;

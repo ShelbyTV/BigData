@@ -66,7 +66,7 @@ void ItemBasedFiltering::sortItemToUsersVectorsWorkerThread(const unsigned int t
                                                             const unsigned int numThreads)
 {
    for (unsigned int i = 0; i < itemsToUsers.size(); i++) {
-      if (i % numThreads != threadID) {
+      if (numThreads > 1 && i % numThreads != threadID) {
          continue;
       } else if (itemsToUsers[i].size() != 0) {
          sort(itemsToUsers[i].begin(), itemsToUsers[i].end());
@@ -98,10 +98,43 @@ bool ItemBasedFiltering::parseInputFile(const string &inputCSV)
    return true;
 }
 
-void ItemBasedFiltering::generateRecsWorkerThread(const unsigned int threadID, 
-                                                  const unsigned int numThreads,
-                                                  const unsigned int numRecs,
-                                                  const string &outputFileName)
+void ItemBasedFiltering::generateRecsForItem(const unsigned int itemID,
+                                             const unsigned int numRecs,
+                                             ofstream &outputFile)
+{
+   TopNSimilarItems topNSimilarItems(numRecs);
+   set<unsigned int> potentials; 
+
+   // loop over users for this item, then over those users, to find potential similar items
+   for (unsigned int j = 0; j < itemsToUsers[itemID].size(); j++) {
+       
+      unsigned int user = itemsToUsers[itemID][j];
+      
+      for (unsigned int k = 0; k < usersToItems[user].size(); k++) {
+         if (usersToItems[user][k] == itemID) {
+            continue;
+         }
+         potentials.insert(usersToItems[user][k]);
+      }
+   }
+
+   for (set<unsigned int>::const_iterator iter = potentials.begin(); 
+        iter != potentials.end(); 
+        ++iter) {
+
+      double similarity = LogLikelihood::ratio(itemsToUsers[itemID], 
+                                               itemsToUsers[*iter], 
+                                               totalUsers);
+      topNSimilarItems.add(similarity, *iter);
+   }
+
+   topNSimilarItems.print(itemID, outputFile);
+}
+
+void ItemBasedFiltering::generateAllRecsWorkerThread(const unsigned int threadID, 
+                                                     const unsigned int numThreads,
+                                                     const unsigned int numRecs,
+                                                     const string &outputFileName)
 {
    ostringstream stringStream;
    stringStream << outputFileName << threadID;
@@ -111,51 +144,25 @@ void ItemBasedFiltering::generateRecsWorkerThread(const unsigned int threadID,
 
    for (unsigned int i = 0; i < itemsToUsers.size(); i++) {
       
-      TopNSimilarItems topNSimilarItems(numRecs);
-      set<unsigned int> potentials; 
-
-      if (i % numThreads != threadID) {
+      if (numThreads > 1 && i % numThreads != threadID) {
          continue;
-      } 
+      }
+
+      generateRecsForItem(i, numRecs, outputFile);
+   } 
             
-      // loop over users for this item, then over those users, to find potential similar items
-      for (unsigned int j = 0; j < itemsToUsers[i].size(); j++) {
-          
-         unsigned int user = itemsToUsers[i][j];
-         
-         for (unsigned int k = 0; k < usersToItems[user].size(); k++) {
-            if (usersToItems[user][k] == i) {
-               continue;
-            }
-            potentials.insert(usersToItems[user][k]);
-         }
-      }
-
-      for (set<unsigned int>::const_iterator iter = potentials.begin(); 
-           iter != potentials.end(); 
-           ++iter) {
-
-         double similarity = LogLikelihood::ratio(itemsToUsers[i], 
-                                                  itemsToUsers[*iter], 
-                                                  totalUsers);
-	 topNSimilarItems.add(similarity, *iter);
-      }
-
-      topNSimilarItems.print(i, outputFile);
-   }
-
    outputFile.close();
 }
 
-void ItemBasedFiltering::generateAndOutputRecommendations(const unsigned int numThreads,
-                                                          const unsigned int numRecs,
-                                                          const string &outputFile)
+void ItemBasedFiltering::generateAndOutputAllRecommendations(const unsigned int numThreads,
+                                                             const unsigned int numRecs,
+                                                             const string &outputFile)
 {
    vector<thread> threads; 
   
    for (unsigned int i = 0; i < numThreads; i++) {
 
-      threads.push_back(thread(&ItemBasedFiltering::generateRecsWorkerThread, 
+      threads.push_back(thread(&ItemBasedFiltering::generateAllRecsWorkerThread, 
                                this, 
                                i, 
                                numThreads, 
@@ -169,10 +176,44 @@ void ItemBasedFiltering::generateAndOutputRecommendations(const unsigned int num
    }
 }
 
-void ItemBasedFiltering::outputRecommendations(const unsigned int numThreads,
-                                               const unsigned int numRecs,
-                                               const string &outputFile)
+void ItemBasedFiltering::outputAllRecommendations(const unsigned int numThreads,
+                                                  const unsigned int numRecs,
+                                                  const string &outputFileName)
 {
    sortItemToUsersVectors(numThreads);
-   generateAndOutputRecommendations(numThreads, numRecs, outputFile); 
+   generateAndOutputAllRecommendations(numThreads, numRecs, outputFileName);
+}
+
+void ItemBasedFiltering::outputUserRecommendations(const unsigned int userID,
+                                                   const unsigned int numThreads,
+                                                   const unsigned int numRecs,
+                                                   const std::string &outputFileName)
+{
+   ofstream outputFile;
+   
+   sortItemToUsersVectors(numThreads);
+
+   outputFile.open(outputFileName.c_str());
+
+   for (unsigned int i = 0; i < usersToItems[userID].size(); i++) {
+      generateRecsForItem(usersToItems[userID][i], numRecs, outputFile);
+   }
+
+   outputFile.close();
+}
+
+void ItemBasedFiltering::outputItemRecommendations(const unsigned int itemID,
+                                                   const unsigned int numThreads,
+                                                   const unsigned int numRecs,
+                                                   const string &outputFileName)
+{
+   ofstream outputFile;
+   
+   sortItemToUsersVectors(numThreads);
+
+   outputFile.open(outputFileName.c_str());
+
+   generateRecsForItem(itemID, numRecs, outputFile);
+
+   outputFile.close();
 }

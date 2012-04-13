@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <fstream>
 
 class ItemBasedFiltering
 {
@@ -12,9 +13,19 @@ public:
    ItemBasedFiltering();
 
    bool parseInputFile(const std::string &inputCSV);
-   void outputRecommendations(const unsigned int numThreads,
-                              const unsigned int numRecs,
-                              const std::string &outputFile);
+   void outputAllRecommendations(const unsigned int numThreads,
+                                 const unsigned int numRecs,
+                                 const std::string &outputFileName);
+
+   void outputUserRecommendations(const unsigned int userID,
+                                  const unsigned int numThreads,
+                                  const unsigned int numRecs,
+                                  const std::string &outputFileName);
+
+   void outputItemRecommendations(const unsigned int itemID,
+				  const unsigned int numThreads,
+                                  const unsigned int numRecs,
+                                  const std::string &outputFileName);
 
 private:
 
@@ -24,13 +35,16 @@ private:
                                            const unsigned int numThreads);
 
    void sortItemToUsersVectors(const unsigned int numThreads);
-   void generateAndOutputRecommendations(const unsigned int numThreads,
-                                         const unsigned int numRecs,
-                                         const std::string &outputFile);
-   void generateRecsWorkerThread(const unsigned int threadID, 
-                                 const unsigned int numThreads,
-                                 const unsigned int numRecs,
-                                 const std::string &outputFileName);
+   void generateAndOutputAllRecommendations(const unsigned int numThreads,
+                                            const unsigned int numRecs,
+                                            const std::string &outputFile);
+   void generateAllRecsWorkerThread(const unsigned int threadID, 
+                                    const unsigned int numThreads,
+                                    const unsigned int numRecs,
+                                    const std::string &outputFileName);
+   void generateRecsForItem(const unsigned int itemID,
+                            const unsigned int numRecs,
+                            std::ofstream &outputFile);
 
    unsigned int totalUsers;
    std::vector< std::vector<unsigned int> > itemsToUsers; 
