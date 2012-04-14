@@ -31,15 +31,26 @@ double LogLikelihood::ratio(const vector<unsigned int> &one,
    unsigned int numUsersWhoSharedOne = one.size();
    unsigned int numUsersWhoSharedTwo = two.size();
 
-   set<unsigned int> intersection;
+   unsigned int intersectionCount = 0;
+   vector<unsigned int>::const_iterator iterOne = one.begin();
+   vector<unsigned int>::const_iterator iterTwo = two.begin();
+   vector<unsigned int>::const_iterator iterOneEnd = one.end();
+   vector<unsigned int>::const_iterator iterTwoEnd = two.end();
 
-   set_intersection(one.begin(), 
-                    one.end(), 
-                    two.begin(), 
-                    two.end(), 
-                    inserter(intersection, intersection.end()));
+   // faster than STL set_intersection, since we're just keeping a count
+   while (iterOne != iterOneEnd && iterTwo != iterTwoEnd) {
+      if (*iterOne < *iterTwo) {
+         ++iterOne;
+      } else if (*iterTwo < *iterOne) {
+         ++iterTwo;
+      } else {
+         ++iterOne;
+         ++iterTwo;
+         ++intersectionCount;
+      }
+   }
 
-   unsigned int k11 = intersection.size(); // both together
+   unsigned int k11 = intersectionCount; // both together
    unsigned int k12 = numUsersWhoSharedTwo - k11; // two, not one
    unsigned int k21 = numUsersWhoSharedOne - k11; // one, not two
    unsigned int k22 = total - (k12 + k21 + k11); // otherwise
