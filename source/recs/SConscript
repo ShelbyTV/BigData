@@ -1,0 +1,11 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+env.MergeFlags('-O6 -pthread -Wall -Werror -pedantic-errors')
+env['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+
+recs = env.Program(target = 'recs', source = sourceFiles)
+env.Install('#/bin', recs)
+
