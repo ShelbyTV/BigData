@@ -24,7 +24,7 @@ void printHelpText()
    cout << "   -i --input      Specify input file (user,item CSV format)" << endl;
    cout << "   -o --output     Specify output file" << endl;
    cout << "   -t --threads    Number of threads to use while running" << endl;
-   cout << "   -r --recs       Number of recommendationds to provider per item" << endl;
+   cout << "   -r --recs       Number of recommendations to provider per item" << endl;
    cout << "   -u --user       Output recommendations for a particular user; cannot be combined with -m" << endl;
    cout << "   -m --item       Output recommendations for a particular item; cannot be combined with -u" << endl;
 }
