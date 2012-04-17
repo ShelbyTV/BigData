@@ -6,9 +6,11 @@ sourceFiles = Split("""
                     """)
 
 Import('env')
-env.MergeFlags('-O6 -pthread -Wall -Werror -pedantic-errors')
-env['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+ibfEnv = env.Clone()
 
-ibf = env.Program(target = 'ibf', source = sourceFiles)
-env.Install('#/bin', ibf)
+ibfEnv.MergeFlags('-O6 -pthread -Wall -Werror')
+ibfEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+
+ibf = ibfEnv.Program(target = 'ibf', source = sourceFiles)
+ibfEnv.Install('#/bin', ibf)
 
