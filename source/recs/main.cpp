@@ -1,8 +1,6 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <stdlib.h>
-#include <stdio.h>
 #include <map>
 #include <sstream>
 #include <iomanip>
@@ -10,12 +8,40 @@
 #include <thread>
 #include <mutex>
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <getopt.h>
 
 using namespace std;
+
+static struct Options {
+   string inputFile;
+   string outputFile;
+   string videoMapFile;
+   unsigned int ytthreads;
+   unsigned int recthreads;
+   unsigned int recs;
+   unsigned int particularUser;
+   unsigned int particularVideo;
+} options; 
+
+void printHelpText()
+{
+   cout << "recs usage:" << endl;
+   cout << "   -h --help       Print this help message" << endl;
+   cout << "   -i --input      Specify input file (user,item CSV format) (default: item.csv)" << endl;
+   cout << "   -o --output     Specify recommendations output file (default: output)" << endl;
+   cout << "   -y --ytthreads  Number of threads to use for YouTube titles while running (default: 32)" << endl;
+   cout << "   -t --recthreads Number of threads to use for grepping recommendations while running (default: 4)" << endl;
+   cout << "   -r --recs       Number of recommendations provided per video (default: 20)" << endl;
+   cout << "   -u --user       Output recommendations for a particular user ID; cannot be combined with -v" << endl;
+   cout << "   -v --video      Output recommendations for a particular video ID; cannot be combined with -u" << endl;
+   cout << "   -m --videomap   Video map file containing id to site/id translation (default: videoMapFile)" << endl;
+}
 
 string exec(char* cmd)
 {
@@ -64,7 +90,7 @@ string getYouTubeTitle(const string &youTubeID)
    return result;
 }
 
-void loadUserVideoShares(const unsigned int userID)
+void loadUserVideoShares(const unsigned int userID, const string &inputFileName)
 {
    ostringstream stringStream;
    char buffer[1024];
@@ -72,7 +98,7 @@ void loadUserVideoShares(const unsigned int userID)
    static string shellCommandPart1 = "grep \"^";
    static string shellCommandPart2 = ",\" ";
 
-   stringStream << shellCommandPart1 << userID << shellCommandPart2 << "input.csv";
+   stringStream << shellCommandPart1 << userID << shellCommandPart2 << inputFileName;
   
    cout << "Loading user video shares..." << endl;
 
@@ -107,7 +133,8 @@ void loadUserVideoShares(const unsigned int userID)
 }
 
 void loadVideoRecommendationsWorkerThread(const unsigned int threadID,
-                                          const unsigned int numThreads)
+                                          const unsigned int numThreads,
+                                          const string &recsFileName)
 {
    char buffer[1024];
    unsigned int count = 0;
@@ -126,7 +153,7 @@ void loadVideoRecommendationsWorkerThread(const unsigned int threadID,
       }
 
       ostringstream stringStream;
-      stringStream << shellCommandPart1 << iter->first << shellCommandPart2 << "output";
+      stringStream << shellCommandPart1 << iter->first << shellCommandPart2 << recsFileName;
    
       FILE* pipe = popen((char *)stringStream.str().c_str(), "r");
    
@@ -162,7 +189,8 @@ void loadVideoRecommendationsWorkerThread(const unsigned int threadID,
    }
 }
 
-void loadVideoRecommendations(const unsigned int numThreads)
+void loadVideoRecommendations(const unsigned int numThreads,
+                              const string &recsFileName)
 {
    vector<thread> threads; 
    cout << "Loading recommendations for videos..." << endl;
@@ -171,7 +199,8 @@ void loadVideoRecommendations(const unsigned int numThreads)
 
       threads.push_back(thread(loadVideoRecommendationsWorkerThread,
                                i, 
-                               numThreads));
+                               numThreads,
+                               recsFileName));
 
    }
 
@@ -182,13 +211,13 @@ void loadVideoRecommendations(const unsigned int numThreads)
    cout << "Recommendations for videos loaded." << endl;
 }
 
-void loadVideoIDs()
+void loadVideoIDs(const string &videoMapFileName)
 {
    ifstream videoMapFile;
    string line;
 
    cout << "Loading video IDs..." << endl;
-   videoMapFile.open("videoMapFile");
+   videoMapFile.open(videoMapFileName);
    while (videoMapFile.good()) {
       char site[128];
       char id[128];
@@ -299,18 +328,118 @@ void setProcessPriority()
    }
 }
 
-int main()
+void parseUserOptions(int argc, char **argv)
 {
-   const unsigned int userID = 345210; // twitter markerrj
+   int c;
+     
+   while (1) {
+      static struct option long_options[] =
+      {
+         {"help",       no_argument,       0, 'h'},
+         {"input",      required_argument, 0, 'i'},
+         {"output",     required_argument, 0, 'o'},
+         {"videomap",   required_argument, 0, 'm'},
+         {"ytthreads",  required_argument, 0, 'y'},
+         {"recthreads", required_argument, 0, 't'},
+         {"recs",       required_argument, 0, 'r'},
+         {"user",       required_argument, 0, 'u'},
+         {"video",      required_argument, 0, 'v'},
+         {0, 0, 0, 0}
+      };
+      
+      int option_index = 0;
+      c = getopt_long(argc, argv, "hi:o:y:t:m:r:u:v:", long_options, &option_index);
+   
+      /* Detect the end of the options. */
+      if (c == -1) {
+         break;
+      }
+   
+      switch (c)
+      {
+         case 'i':
+            options.inputFile = optarg;
+            break;
+   
+         case 'o':
+            options.outputFile = optarg;
+            break;
+ 
+         case 'm':
+            options.videoMapFile = optarg;
+            break;
+
+         case 'y':
+            options.ytthreads = atoi(optarg);
+            break;
+   
+         case 't':
+            options.recthreads = atoi(optarg);
+            break;
+   
+         case 'r':
+            options.recs = atoi(optarg);
+            break;
+    
+         case 'u':
+            options.particularUser = atoi(optarg);
+            break;
+
+         case 'v':
+            options.particularVideo = atoi(optarg);
+            break;
+        
+         case 'h': 
+         case '?':
+         default:
+            printHelpText();
+            exit(1);
+      }
+   }
+
+   if (optind < argc || options.recs == 0 || options.ytthreads == 0 || options.recthreads == 0) {
+      printHelpText();
+      exit(1);
+   }
+}
+
+void checkOptions()
+{
+   if (options.particularUser != numeric_limits<unsigned int>::max() &&
+       options.particularVideo != numeric_limits<unsigned int>::max()) {
+      printHelpText();
+      exit(1);
+   }
+
+   if (options.particularUser == numeric_limits<unsigned int>::max() &&
+       options.particularVideo == numeric_limits<unsigned int>::max()) {
+      printHelpText();
+      exit(1);
+   }
+}
+
+int main(int argc, char **argv)
+{
+   options.inputFile = "input.csv";
+   options.outputFile = "output";
+   options.videoMapFile = "videoMapFile";
+   options.ytthreads = 32;
+   options.recthreads = 4;
+   options.recs = 20;
+   options.particularUser = numeric_limits<unsigned int>::max();
+   options.particularVideo = numeric_limits<unsigned int>::max();
+
+   parseUserOptions(argc, argv);
+   checkOptions();
 
    setProcessPriority();
 
-   loadUserVideoShares(userID);
-   loadVideoRecommendations(4);
-   loadVideoIDs();
-   loadYouTubeVideoTitles(32);
+   loadUserVideoShares(options.particularUser, options.inputFile);
+   loadVideoRecommendations(options.recthreads, options.outputFile);
+   loadVideoIDs(options.videoMapFile);
+   loadYouTubeVideoTitles(options.ytthreads);
 
-   printResults(userID);
+   printResults(options.particularUser);
 
    return 0;
 }
