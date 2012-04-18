@@ -1,0 +1,14 @@
+sourceFiles = Split("""
+                       main.cpp
+                       logLikelihood.cpp
+                       itemBasedFiltering.cpp
+                       topNSimilarItems.cpp
+                    """)
+
+Import('env')
+env.MergeFlags('-O6 -pthread -Wall -Werror -pedantic-errors')
+env['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+
+ibf = env.Program(target = 'ibf', source = sourceFiles)
+env.Install('#/bin', ibf)
+
