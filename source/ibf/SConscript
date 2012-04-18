@@ -10,6 +10,7 @@ ibfEnv = env.Clone()
 
 ibfEnv.MergeFlags('-O6 -pthread -Wall -Werror')
 ibfEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+ibfEnv['CPPPATH'] = '#/source'
 
 ibf = ibfEnv.Program(target = 'ibf', source = sourceFiles)
 ibfEnv.Install('#/bin', ibf)

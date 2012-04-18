@@ -16,45 +16,10 @@
 #include <unistd.h>
 #include <getopt.h>
 
+#include "common/parallelize.h"
+#include "common/commandOutput.h"
+
 using namespace std;
-
-#define START_COMMAND_OUTPUT_LOOP(command, buffer, size)         \
-{                                                                \
-   FILE *commandOutputLoopPipe = popen(command, "r");            \
-   if (!commandOutputLoopPipe) {                                 \
-      exit(1);                                                   \
-   }                                                             \
-                                                                 \
-   while (!feof(commandOutputLoopPipe)) {                        \
-      if (fgets(buffer, size, commandOutputLoopPipe) == NULL) {  \
-         break;                                                  \
-      }
-
-#define END_COMMAND_OUTPUT_LOOP                                  \
-   }                                                             \
-   pclose(commandOutputLoopPipe);                                \
-}
-
-#define PARALLELIZE(numThreads, function, ...)                   \
-{                                                                \
-   vector<thread> parallelizeThreads;                            \
-   for (unsigned int parallelizeCounter = 0;                     \
-        parallelizeCounter < numThreads;                         \
-        parallelizeCounter++) {                                  \
-                                                                 \
-      parallelizeThreads.push_back(thread(function,              \
-                                          parallelizeCounter,    \
-                                          numThreads ,           \
-                                          ##__VA_ARGS__));       \
-   }                                                             \
-                                                                 \
-   for (unsigned int parallelizeCounter = 0;                     \
-        parallelizeCounter < numThreads;                         \
-        parallelizeCounter++) {                                  \
-                                                                 \
-      parallelizeThreads[parallelizeCounter].join();             \
-   }                                                             \
-}
 
 static struct Options {
    string inputFile;
@@ -177,9 +142,9 @@ void insertVideoRecommendation(const unsigned int item,
    }
 }
 
-void loadVideoRecommendationsWorkerThread(const unsigned int threadID,
-                                          const unsigned int numThreads,
-                                          const string &recsFileName)
+void loadVideoRecommendationsWorkerThread(const string &recsFileName,
+                                          const unsigned int threadID,
+                                          const unsigned int numThreads)
 {
    unsigned int count = 0;
    ifstream recsFile;
@@ -245,9 +210,10 @@ void loadVideoRecommendations(const unsigned int numThreads,
    cout << "Recommendations for videos loaded." << endl;
 }
 
-void loadVideoIDsWorkerThread(const unsigned int threadID,
-                              const unsigned int numThreads,
-                              const string &videoMapFileName)
+void loadVideoIDsWorkerThread(const string &videoMapFileName,
+                              const unsigned int threadID,
+                              const unsigned int numThreads)
+                              
 {
    ifstream videoMapFile;
    string line;

@@ -1,7 +1,8 @@
-#include "logLikelihood.h"
 #include <algorithm>
 #include <set>
 #include <cmath>
+
+#include "logLikelihood.h"
 
 using namespace std;
 

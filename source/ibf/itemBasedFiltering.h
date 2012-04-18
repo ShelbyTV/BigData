@@ -38,10 +38,10 @@ private:
    void generateAndOutputAllRecommendations(const unsigned int numThreads,
                                             const unsigned int numRecs,
                                             const std::string &outputFile);
-   void generateAllRecsWorkerThread(const unsigned int threadID, 
-                                    const unsigned int numThreads,
-                                    const unsigned int numRecs,
-                                    const std::string &outputFileName);
+   void generateAllRecsWorkerThread(const unsigned int numRecs,
+                                    const std::string &outputFileName,
+                                    const unsigned int threadID, 
+                                    const unsigned int numThreads);
    void generateRecsForItem(const unsigned int itemID,
                             const unsigned int numRecs,
                             std::ofstream &outputFile);

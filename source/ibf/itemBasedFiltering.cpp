@@ -1,7 +1,3 @@
-#include "itemBasedFiltering.h"
-#include "topNSimilarItems.h"
-#include "logLikelihood.h"
-
 #include <fstream>
 #include <string>
 #include <vector>
@@ -10,6 +6,12 @@
 #include <sstream>
 #include <iostream>
 #include <algorithm>
+
+#include "common/parallelize.h"
+
+#include "itemBasedFiltering.h"
+#include "topNSimilarItems.h"
+#include "logLikelihood.h"
 
 using namespace std;
 
@@ -76,15 +78,7 @@ void ItemBasedFiltering::sortItemToUsersVectorsWorkerThread(const unsigned int t
 
 void ItemBasedFiltering::sortItemToUsersVectors(const unsigned int numThreads)
 {
-   vector<thread> threads; 
-  
-   for (unsigned int i = 0; i < numThreads; i++) {
-      threads.push_back(thread(&ItemBasedFiltering::sortItemToUsersVectorsWorkerThread, this, i, numThreads));
-   }
-
-   for (unsigned int i = 0; i < numThreads; i++) {
-      threads[i].join();
-   }
+   PARALLELIZE(numThreads, &ItemBasedFiltering::sortItemToUsersVectorsWorkerThread, this);
 }
 
 bool ItemBasedFiltering::parseInputFile(const string &inputCSV)
@@ -131,10 +125,10 @@ void ItemBasedFiltering::generateRecsForItem(const unsigned int itemID,
    topNSimilarItems.print(itemID, outputFile);
 }
 
-void ItemBasedFiltering::generateAllRecsWorkerThread(const unsigned int threadID, 
-                                                     const unsigned int numThreads,
-                                                     const unsigned int numRecs,
-                                                     const string &outputFileName)
+void ItemBasedFiltering::generateAllRecsWorkerThread(const unsigned int numRecs,
+                                                     const string &outputFileName,
+                                                     const unsigned int threadID,
+                                                     const unsigned int numThreads)
 {
    ostringstream stringStream;
    stringStream << outputFileName << threadID;
@@ -158,22 +152,7 @@ void ItemBasedFiltering::generateAndOutputAllRecommendations(const unsigned int 
                                                              const unsigned int numRecs,
                                                              const string &outputFile)
 {
-   vector<thread> threads; 
-  
-   for (unsigned int i = 0; i < numThreads; i++) {
-
-      threads.push_back(thread(&ItemBasedFiltering::generateAllRecsWorkerThread, 
-                               this, 
-                               i, 
-                               numThreads, 
-                               numRecs, 
-                               outputFile));
-
-   }
-
-   for (unsigned int i = 0; i < numThreads; i++) {
-      threads[i].join();
-   }
+   PARALLELIZE(numThreads, &ItemBasedFiltering::generateAllRecsWorkerThread, this, numRecs, outputFile);
 }
 
 void ItemBasedFiltering::outputAllRecommendations(const unsigned int numThreads,
