@@ -213,7 +213,6 @@ void loadVideoRecommendations(const unsigned int numThreads,
 void loadVideoIDsWorkerThread(const string &videoMapFileName,
                               const unsigned int threadID,
                               const unsigned int numThreads)
-                              
 {
    ifstream videoMapFile;
    string line;
