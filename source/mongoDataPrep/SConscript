@@ -1,0 +1,13 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+mongoDataPrepEnv = env.Clone()
+
+mongoDataPrepEnv.MergeFlags('-O6 -Wall -Werror')
+mongoDataPrepEnv['CPPPATH'] = '#/source'
+
+mongoDataPrep = mongoDataPrepEnv.Program(target = 'mongoDataPrep', source = sourceFiles)
+mongoDataPrepEnv.Install('#/bin', mongoDataPrep)
+

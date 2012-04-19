@@ -167,6 +167,8 @@ void loadVideoRecommendationsWorkerThread(const string &recsFileName,
  
       insertVideoRecommendation(item, rec, val); 
    }
+
+   recsFile.close();
 }
 
 void loadVideoRecommendationsWithGrep(const string &recsFileName)

@@ -5,7 +5,7 @@ sourceFiles = Split("""
 Import('env')
 recsEnv = env.Clone()
 
-recsEnv.MergeFlags('-O6 -pthread -pthread -Wall -Werror')
+recsEnv.MergeFlags('-O6 -pthread -Wall -Werror')
 recsEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
 recsEnv['CPPPATH'] = '#/source'
 
