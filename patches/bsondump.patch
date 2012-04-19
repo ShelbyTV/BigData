@@ -1,0 +1,222 @@
+From 75b28512deb828179a0888cfcc86e5c791ce9c81 Mon Sep 17 00:00:00 2001
+From: Andrew Morrow <acm@example.local>
+Date: Thu, 21 Jul 2011 15:49:40 -0400
+Subject: [PATCH] enhancements for the bsondump utility
+
+- add the ability to emit BSON, as well as JSON
+- add support to apply a projection each object
+- add support for reading stdin via '-'
+- inhibit progress and summary output at log level 0
+---
+ tools/bsondump.cpp |   16 +++++++++++--
+ tools/tool.cpp     |   62 +++++++++++++++++++++++++++++++++++++--------------
+ tools/tool.h       |    2 +
+ 3 files changed, 60 insertions(+), 20 deletions(-)
+
+diff --git a/tools/bsondump.cpp b/tools/bsondump.cpp
+index 506a4e7..61326c7 100644
+--- a/tools/bsondump.cpp
++++ b/tools/bsondump.cpp
+@@ -32,16 +32,16 @@
+ 
+ class BSONDump : public BSONTool {
+ 
+-    enum OutputType { JSON , DEBUG } _type;
++    enum OutputType { BSON, JSON , DEBUG } _type;
+ 
+ public:
+ 
+     BSONDump() : BSONTool( "bsondump", NONE ) {
+         add_options()
+-        ("type" , po::value<string>()->default_value("json") , "type of output: json,debug" )
++        ("type" , po::value<string>()->default_value("json") , "type of output: bson,json,debug" )
+         ;
+         add_hidden_options()
+-        ("file" , po::value<string>() , ".bson file" )
++        ("file" , po::value<string>() , ".bson file (use '-' for stdin" )
+         ;
+         addPositionArg( "file" , 1 );
+         _noconnection = true;
+@@ -56,6 +56,8 @@ class BSONDump : public BSONTool {
+             string t = getParam( "type" );
+             if ( t == "json" )
+                 _type = JSON;
++            else if ( t == "bson" )
++                _type = BSON;
+             else if ( t == "debug" )
+                 _type = DEBUG;
+             else {
+@@ -64,6 +66,11 @@ class BSONDump : public BSONTool {
+             }
+         }
+ 
++        if ( _type == BSON && logLevel > 0 ) {
++            cerr << "refusing to output BSON with verbosity enabled" << endl;
++            return 1;
++        }
++
+         path root = getParam( "file" );
+         if ( root == "" ) {
+             printExtraHelp(cout);
+@@ -124,6 +131,9 @@ class BSONDump : public BSONTool {
+         case JSON:
+             cout << o.jsonString( TenGen ) << endl;
+             break;
++        case BSON:
++            cout.write( o.objdata(), o.objsize() );
++            break;
+         case DEBUG:
+             debug(o);
+             break;
+diff --git a/tools/tool.cpp b/tools/tool.cpp
+index 98e18a9..362f1e7 100644
+--- a/tools/tool.cpp
++++ b/tools/tool.cpp
+@@ -18,6 +18,7 @@
+ 
+ #include "tool.h"
+ 
++#include <cstdio>
+ #include <iostream>
+ 
+ #include <boost/filesystem/operations.hpp>
+@@ -401,6 +402,7 @@
+         add_options()
+         ("objcheck" , "validate object before inserting" )
+         ("filter" , po::value<string>() , "filter to apply before inserting" )
++        ("project" , po::value<string>() , "projection to apply before inserting" )
+         ;
+     }
+ 
+@@ -411,31 +413,45 @@
+         if ( hasParam( "filter" ) )
+             _matcher.reset( new Matcher( fromjson( getParam( "filter" ) ) ) );
+ 
++        if ( hasParam( "project" ) ) {
++            _projection.reset( new Projection );
++            _projection->init( fromjson( getParam( "project" ) ) );
++        }
++
+         return doRun();
+     }
+ 
+     long long BSONTool::processFile( const path& root ) {
+-        _fileName = root.string();
+ 
+-        unsigned long long fileLength = file_size( root );
++        FILE* file = NULL;
++        unsigned long long fileLength = 0;
+ 
+-        if ( fileLength == 0 ) {
+-            out() << "file " << _fileName << " empty, skipping" << endl;
+-            return 0;
++        if ( root == "-" ) {
++            _fileName = "stdin";
++            file = stdin;
+         }
++        else {
++            _fileName = root.string();
++            fileLength = file_size( root );
+ 
++            if ( fileLength == 0 ) {
++                out() << "file " << _fileName << " empty, skipping" << endl;
++                return 0;
++            }
+ 
+-        FILE* file = fopen( _fileName.c_str() , "rb" );
+-        if ( ! file ) {
+-            log() << "error opening file: " << _fileName << endl;
+-            return 0;
++            file = fopen( _fileName.c_str() , "rb" );
++            if ( ! file ) {
++                log() << "error opening file: " << _fileName << endl;
++                return 0;
++            }
+         }
+ 
+ #if !defined(__sunos__) && defined(POSIX_FADV_SEQUENTIAL)
+         posix_fadvise(fileno(file), 0, fileLength, POSIX_FADV_SEQUENTIAL);
+ #endif
+ 
+-        log(1) << "\t file size: " << fileLength << endl;
++        if ( fileLength > 0 )
++            log(1) << "\t file size: " << fileLength << endl;
+ 
+         unsigned long long read = 0;
+         unsigned long long num = 0;
+@@ -445,10 +461,17 @@
+         boost::scoped_array<char> buf_holder(new char[BUF_SIZE]);
+         char * buf = buf_holder.get();
+ 
+-        ProgressMeter m( fileLength );
++        boost::scoped_ptr<ProgressMeter> m;
++        if ( fileLength > 0 && logLevel > 0 )
++            m.reset( new ProgressMeter( fileLength ) );
+ 
+-        while ( read < fileLength ) {
++        while ( ( fileLength == 0 || read < fileLength ) ) {
+             size_t amt = fread(buf, 1, 4, file);
++
++            if ( fileLength == 0 && amt == 0 )
++                if ( feof( file ) )
++                    break;
++
+             assert( amt == 4 );
+ 
+             int size = ((int*)buf)[0];
+@@ -476,22 +499,27 @@
+             }
+ 
+             if ( _matcher.get() == 0 || _matcher->matches( o ) ) {
+-                gotObject( o );
++                gotObject( _projection.get() ? _projection->transform( o ) : o );
+                 processed++;
+             }
+ 
+             read += o.objsize();
+             num++;
+ 
+-            m.hit( o.objsize() );
++            if ( m )
++                m->hit( o.objsize() );
+         }
+ 
+         fclose( file );
+ 
+-        uassert( 10265 ,  "counts don't match" , m.done() == fileLength );
+-        out() << "\t "  << m.hits() << " objects found" << endl;
++        if ( m && fileLength > 0)
++            uassert( 10265 ,  "counts don't match" , m->done() == fileLength );
++
++        log(1) << "\t " << (m ? m->hits() : num ) << " objects found" << endl;
++
+         if ( _matcher.get() )
+-            out() << "\t "  << processed << " objects processed" << endl;
++            log(1) << "\t "  << processed << " objects processed" << endl;
++
+         return processed;
+     }
+ 
+diff --git a/tools/tool.h b/tools/tool.h
+index 95125e8..c69b5a8 100644
+--- a/tools/tool.h
++++ b/tools/tool.h
+@@ -29,6 +29,7 @@
+ #include "client/dbclient.h"
+ #include "db/instance.h"
+ #include "db/matcher.h"
++#include "db/projection.h"
+ 
+ using std::string;
+ 
+@@ -139,6 +140,7 @@
+     class BSONTool : public Tool {
+         bool _objcheck;
+         auto_ptr<Matcher> _matcher;
++        auto_ptr<Projection> _projection;
+ 
+     public:
+         BSONTool( const char * name , DBAccess access=ALL, bool objcheck = false );
+-- 
+1.7.5.4
+

@@ -1,0 +1,13 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+csvPruneEnv = env.Clone()
+
+csvPruneEnv.MergeFlags('-O6 -Wall -Werror')
+csvPruneEnv['CPPPATH'] = '#/source'
+
+csvPrune = csvPruneEnv.Program(target = 'csvPrune', source = sourceFiles)
+csvPruneEnv.Install('#/bin', csvPrune)
+
