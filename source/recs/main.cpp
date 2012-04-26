@@ -38,9 +38,9 @@ void printHelpText()
 {
    cout << "recs usage:" << endl;
    cout << "   -h --help        Print this help message" << endl;
-   cout << "   -i --input       Specify input file (user,item CSV format) (default: item.csv)" << endl;
-   cout << "   -m --videomap    Video map file containing id to site/id translation (default: videoMapFile)" << endl;
-   cout << "   -n --usermap     User map file containing id to network/id translation (default: userMapFile)" << endl;
+   cout << "   -i --input       Specify input file (user,item CSV format) (default: input.csv)" << endl;
+   cout << "   -m --videomap    Video map file containing id to site/id translation (default: videos.csv)" << endl;
+   cout << "   -n --usermap     User map file containing id to network/id translation (default: users.csv)" << endl;
    cout << "   -o --output      Specify recommendations output file (default: output)" << endl;
    cout << "   -t --filethreads Number of threads to use for file operations while running (default: 4)" << endl;
    cout << "   -u --user        Output recommendations for a particular user ID; cannot be combined with -v, -w, -z" << endl;
@@ -79,6 +79,17 @@ string getYouTubeTitle(const string &youTubeID)
 {
    static const string shellCommandPart1 = "curl -s \"http://www.youtube.com/oembed?url=http://ww.youtube.com/watch?v=";
    static const string shellCommandPart2 = "\" | sed 's#.*\"title\": \"\\([^\"]*\\)\".*#\\1#g'";
+
+   ostringstream stringStream;
+   stringStream << shellCommandPart1 << youTubeID << shellCommandPart2;
+
+   return exec((char *)stringStream.str().c_str());
+}
+
+string getVimeoTitle(const string &youTubeID) 
+{
+   static const string shellCommandPart1 = "curl -s \"http://vimeo.com/api/oembed.json?url=http://ww.vimeo.com/";
+   static const string shellCommandPart2 = "\" | sed -n 's#.*\"title\":\"\\([^\"]*\\)\".*#\\1#p'";
 
    ostringstream stringStream;
    stringStream << shellCommandPart1 << youTubeID << shellCommandPart2;
@@ -222,8 +233,8 @@ void loadVideoIDsWorkerThread(const string &videoMapFileName,
 
    videoMapFile.open(videoMapFileName);
    while (videoMapFile.good()) {
-      char site[128];
-      char id[128];
+      char site[1024];
+      char id[1024];
       unsigned int item;
 
       getline(videoMapFile, line);
@@ -232,7 +243,7 @@ void loadVideoIDsWorkerThread(const string &videoMapFileName,
          continue;
       }
  
-      if (3 != sscanf(line.c_str(), "%u => %127s %127s", &item, site, id)) {
+      if (3 != sscanf(line.c_str(), "%u,%[^,],%1023s", &item, site, id)) {
          continue;
       }
       
@@ -253,8 +264,8 @@ void loadVideoIDs(const unsigned int numThreads,
    cout << "Video IDs loaded." << endl;
 }
 
-void loadYouTubeVideoTitlesWorkerThread(const unsigned int threadID, 
-                                        const unsigned int numThreads)
+void loadVideoTitlesWorkerThread(const unsigned int threadID, 
+                                 const unsigned int numThreads)
 {
    unsigned int count = 0;
    map<unsigned int, Video>::iterator iter = videos.begin();
@@ -264,27 +275,27 @@ void loadYouTubeVideoTitlesWorkerThread(const unsigned int threadID,
          continue;
       }
     
-      if (iter->second.site != "youtube" || iter->second.title != "") {
-         continue;
+      if (iter->second.site == "youtube" && iter->second.title == "") {
+         iter->second.title = getYouTubeTitle(iter->second.id);
+      } else if (iter->second.site == "vimeo" && iter->second.title == "") {
+         iter->second.title = getVimeoTitle(iter->second.id);
       }
-
-      iter->second.title = getYouTubeTitle(iter->second.id);
    }
 }
 
-void loadYouTubeVideoTitles(const unsigned int numThreads)
+void loadVideoTitles(const unsigned int numThreads)
 {
-   cout << "Loading YouTube video titles..." << endl;
-   PARALLELIZE(numThreads, loadYouTubeVideoTitlesWorkerThread);
-   cout << "YouTube video titles loaded." << endl;
+   cout << "Loading video titles..." << endl;
+   PARALLELIZE(numThreads, loadVideoTitlesWorkerThread);
+   cout << "Video titles loaded." << endl;
 }
 
 unsigned int loadTwitterUserID(const string &twitterUsername, 
                                const string &userMapFileName)
 {
-   static const string shellCommandPart1 = "grep -m1 \"twitter ";
+   static const string shellCommandPart1 = "grep -m1 \"twitter,";
    static const string shellCommandPart2 = "$\" ";
-   static const string shellCommandPart3 = " | sed 's#^\\([0-9]*\\) .*#\\1#g'";
+   static const string shellCommandPart3 = " | sed 's#^\\([0-9]*\\),.*#\\1#g'";
 
    ostringstream stringStream;
    stringStream << shellCommandPart1 << twitterUsername << shellCommandPart2 << userMapFileName << shellCommandPart3;
@@ -306,9 +317,9 @@ unsigned int loadTwitterUserID(const string &twitterUsername,
 unsigned int loadYouTubeVideoID(const string &youtubeVideo, 
                                 const string &videoMapFileName)
 {
-   static const string shellCommandPart1 = "grep -m1 \"youtube ";
+   static const string shellCommandPart1 = "grep -m1 \"youtube,";
    static const string shellCommandPart2 = "$\" ";
-   static const string shellCommandPart3 = " | sed 's#^\\([0-9]*\\) .*#\\1#g'";
+   static const string shellCommandPart3 = " | sed 's#^\\([0-9]*\\),.*#\\1#g'";
 
    ostringstream stringStream;
    stringStream << shellCommandPart1 << youtubeVideo << shellCommandPart2 << videoMapFileName << shellCommandPart3;
@@ -327,6 +338,25 @@ unsigned int loadYouTubeVideoID(const string &youtubeVideo,
    return videoID;
 }
 
+bool supportedVideo(const string &site, const string &id)
+{
+   if (site != "youtube" && site != "vimeo") {
+      return false;
+   }
+
+   if (site == "vimeo") {
+      int numericID = atoi(id.c_str());
+      ostringstream stringStream;
+      stringStream << numericID;
+
+      if (stringStream.str() != id) {
+         return false;
+      }
+   }
+
+   return true;
+}
+
 void printResults()
 {
    cout << "************************************************************" << endl;
@@ -336,18 +366,18 @@ void printResults()
         iter != videoRecs.end();
         ++iter) {
 
-      if (videos.find(iter->first)->second.site != "youtube") {
+      if (!supportedVideo(videos.find(iter->first)->second.site, videos.find(iter->first)->second.id)) {
          continue;
       }
      
       cout.width(12); 
-      cout << videos.find(iter->first)->second.id << ": " << videos.find(iter->first)->second.title << endl;
+      cout << videos.find(iter->first)->second.id << ": " << videos.find(iter->first)->second.title.substr(0, 80) << endl;
       
       for (multimap<double, unsigned int>::const_reverse_iterator riter = iter->second.rbegin();
            riter != iter->second.rend();
            ++riter) {
 
-         if (videos.find(riter->second)->second.site != "youtube") {
+         if (!supportedVideo(videos.find(riter->second)->second.site, videos.find(riter->second)->second.id)) {
             continue;
          }
 
@@ -476,8 +506,8 @@ void setDefaultOptions()
 {
    options.inputFile = "input.csv";
    options.outputFile = "output";
-   options.videoMapFile = "videoMapFile";
-   options.userMapFile = "userMapFile";
+   options.videoMapFile = "videos.csv";
+   options.userMapFile = "users.csv";
    options.ytthreads = 32;
    options.filethreads = 4;
    options.particularUserID = numeric_limits<unsigned int>::max();
@@ -524,7 +554,7 @@ int main(int argc, char **argv)
 
    loadVideoRecommendations(options.filethreads, options.outputFile);
    loadVideoIDs(options.filethreads, options.videoMapFile);
-   loadYouTubeVideoTitles(options.ytthreads);
+   loadVideoTitles(options.ytthreads);
 
    printResults();
 
