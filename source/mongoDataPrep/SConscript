@@ -9,5 +9,7 @@ mongoDataPrepEnv.MergeFlags('-O6 -Wall -Werror')
 mongoDataPrepEnv['CPPPATH'] = '#/source'
 
 mongoDataPrep = mongoDataPrepEnv.Program(target = 'mongoDataPrep', source = sourceFiles)
-mongoDataPrepEnv.Install('#/bin', mongoDataPrep)
+mongoDataPrepInstall = mongoDataPrepEnv.Install('#/bin', mongoDataPrep)
 
+mongoDataPrepEnv.Default(mongoDataPrep)
+mongoDataPrepEnv.Default(mongoDataPrepInstall)

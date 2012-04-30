@@ -9,5 +9,7 @@ csvPruneEnv.MergeFlags('-O6 -Wall -Werror')
 csvPruneEnv['CPPPATH'] = '#/source'
 
 csvPrune = csvPruneEnv.Program(target = 'csvPrune', source = sourceFiles)
-csvPruneEnv.Install('#/bin', csvPrune)
+csvPruneInstall = csvPruneEnv.Install('#/bin', csvPrune)
 
+csvPruneEnv.Default(csvPrune)
+csvPruneEnv.Default(csvPruneInstall)

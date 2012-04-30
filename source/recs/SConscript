@@ -10,5 +10,7 @@ recsEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fix
 recsEnv['CPPPATH'] = '#/source'
 
 recs = recsEnv.Program(target = 'recs', source = sourceFiles)
-recsEnv.Install('#/bin', recs)
+recsInstall = recsEnv.Install('#/bin', recs)
 
+recsEnv.Default(recs)
+recsEnv.Default(recsInstall)
