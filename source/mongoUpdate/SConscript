@@ -1,0 +1,16 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+mongoUpdateEnv = env.Clone()
+
+mongoUpdateEnv.MergeFlags('-O6 -pthread -Wall -Werror -DMONGO_HAVE_UNISTD -static')
+mongoUpdateEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+mongoUpdateEnv['CPPPATH'] = ['#/source', '#']
+
+mongoUpdate = mongoUpdateEnv.Program(target = 'mongoUpdate', source = sourceFiles + ['#/build/mongo-c-driver/libmongoc.a'])
+mongoUpdateInstall = mongoUpdateEnv.Install('#/bin', mongoUpdate)
+
+mongoUpdateEnv.Default(mongoUpdate)
+mongoUpdateEnv.Default(mongoUpdateInstall)
