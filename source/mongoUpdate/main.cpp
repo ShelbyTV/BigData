@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <sstream>
+#include <limits>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -36,10 +37,19 @@ typedef struct MongoVideo
    MongoVideoStatus status;
 } MongoVideo;
 
+typedef struct Recommendation
+{
+   unsigned int recId;
+   double recVal;
+} Recommendation;
+
 static vector<Video> recVideoIDs;
 static vector<MongoVideo> gtVideos;
 
 static mongo conn;
+
+static unsigned int mongoItemsWithRecommendations = 0;
+static unsigned int mongoItemsTotalRecommendations = 0;
 
 static struct Options {
    string outputFile;
@@ -53,8 +63,6 @@ void printHelpText()
    cout << "   -m --videomap    Video map file containing id to site/id translation (default: videos.csv)" << endl;
    cout << "   -o --output      Specify recommendations output file (default: output)" << endl;
 }
-
-
 
 bool connectToMongoAndAuthenticate()
 {
@@ -111,42 +119,108 @@ void loadVideoMap(const string &videoMapFileName)
 void getMongoVideoForItem(const unsigned int item)
 {
    bson query;
-   mongo_cursor cursor;
-
    bson_init(&query);
    bson_append_string(&query, "a", recVideoIDs[item].site.c_str());
    bson_append_string(&query, "b", recVideoIDs[item].id.c_str());
    bson_finish(&query);
  
-   mongo_cursor_init(&cursor, &conn, "gt-video.videos");
-   mongo_cursor_set_query(&cursor, &query);
- 
-   while(mongo_cursor_next(&cursor) == MONGO_OK) {
+   bson fields;
+   bson_init(&fields);
+   bson_append_int(&fields, "_id", 1);
+   bson_finish(&fields);
+
+   bson out;
+   bson_init(&out);
+
+   if (mongo_find_one(&conn, "gt-video.videos", &query, &fields, &out) == MONGO_OK) {
       bson_iterator iterator;
-      bson_iterator_init(&iterator, mongo_cursor_bson(&cursor));
+      bson_iterator_init(&iterator, &out);
       gtVideos[item].mongoId = *bson_iterator_oid(&iterator);
       gtVideos[item].status = INITIALIZED;
+   } else {
+      gtVideos[item].status = UNAVAILABLE;
    }
  
+   bson_destroy(&out);
+   bson_destroy(&fields);
    bson_destroy(&query);
-   mongo_cursor_destroy(&cursor);
+}
+
+void getMongoVideoIfNeeded(const unsigned int item)
+{
+   if (gtVideos[item].status == UNINITIALIZED) {
+      getMongoVideoForItem(item);
+   } 
+}
+
+void printItemWithRecs(const unsigned int item, vector<Recommendation> &recs)
+{
+   cout << item << ":" << endl;
+   for (unsigned int i = 0; i < recs.size(); i++) {
+      cout << "   " << recs[i].recId << " " << recs[i].recVal << endl;
+   }
+}
+
+void updateItemInMongoWithRecs(const unsigned int item, vector<Recommendation> &recs)
+{
+   bson cond; 
+   bson_init(&cond);
+   bson_append_oid(&cond, "_id", &gtVideos[item].mongoId);
+   bson_finish(&cond);
+   
+   bson op;
+   bson_init(&op);
+   {
+       bson_append_start_object(&op, "$set");
+       bson_append_start_array(&op, "r"); 
+       
+       for (unsigned int i = 0; i < recs.size(); i++) {
+         ostringstream stringStream;
+         stringStream << i;
+
+         bson_append_start_object(&op, stringStream.str().c_str());
+         bson_append_oid(&op, "a", &gtVideos[recs[i].recId].mongoId);
+         bson_append_double(&op, "b", recs[i].recVal);
+         bson_append_finish_object(&op);
+       }
+
+       bson_append_finish_array(&op);
+       bson_append_finish_object(&op);
+   }
+   bson_finish(&op);
+   
+   int status = mongo_update(&conn, "gt-video.videos", &cond, &op, 0);
+   if (status != MONGO_OK) {
+      cout << "ERROR updating video." << endl;
+   }
+ 
+   // bson_print(&cond); 
+   // bson_print(&op);
+ 
+   bson_destroy(&op);
+   bson_destroy(&cond);
 }
 
 void addOrUpdateRecommendations(const string &recsFileName)
 {
    ifstream recsFile;
    string line;
-
-   int count = 0;
+   unsigned int count = 0;
+   vector<Recommendation> recs;
+   unsigned int lastItem = numeric_limits<unsigned int>::max();   
 
    recsFile.open(recsFileName);
 
    while (recsFile.good()) {
       unsigned int item = 0, rec = 0;
       double val = 0;
+     
+      // if (count > 100) {
+      //    break;
+      // }
 
-      if (count > 10) {
-         break;
+      if (count % 100000 == 0) {
+         cout << count << endl;
       }
 
       getline(recsFile, line);
@@ -155,27 +229,33 @@ void addOrUpdateRecommendations(const string &recsFileName)
          continue;
       }
 
-      if (recVideoIDs[item].site.empty() || recVideoIDs[item].id.empty()) {
+      if (recVideoIDs[item].site.empty() || recVideoIDs[item].id.empty() ||
+          recVideoIDs[rec].site.empty() || recVideoIDs[rec].id.empty()) {
          continue;
       }
 
       count++;
 
+      getMongoVideoIfNeeded(item);
+      getMongoVideoIfNeeded(rec);
 
-      if (gtVideos[item].status == UNINITIALIZED) {
-         cout << "Item " << item << " is UNINITIALIZED." << endl;
-         getMongoVideoForItem(item);
-         cout << recVideoIDs[item].site << " " << recVideoIDs[item].id << " => ";
+      if (item != lastItem) {
+         if (recs.size() > 0) {
+            // printItemWithRecs(lastItem, recs);
+            updateItemInMongoWithRecs(lastItem, recs);
 
-         if (gtVideos[item].status == INITIALIZED) {
-            char temp[1024];
-            bson_oid_to_string(&gtVideos[item].mongoId, temp);
-            cout << temp << endl;
-         } else {
-            cout << "UNAVAILABLE" << endl; 
+            mongoItemsWithRecommendations++;
+            mongoItemsTotalRecommendations += recs.size();
          }
-      } else {
-         cout << "Item " << item << " already processed." << endl;
+         lastItem = item;
+         recs.clear();
+      }   
+    
+      if (gtVideos[item].status == INITIALIZED && gtVideos[rec].status == INITIALIZED) { 
+         Recommendation newRec;
+         newRec.recId = rec;
+         newRec.recVal = val;
+         recs.push_back(newRec); 
       }
    }
 
@@ -228,6 +308,36 @@ void setDefaultOptions()
    options.videoMapFile = "videos.csv";
 }
 
+void printVideoStats()
+{
+   unsigned int mongoVideoIdsObtained = 0;
+   unsigned int mongoVideoIdsDenied = 0;
+
+   for (unsigned int i = 0; i < gtVideos.size(); i++) {
+      if (gtVideos[i].status == INITIALIZED) {
+         mongoVideoIdsObtained++;
+      } else if (gtVideos[i].status == UNAVAILABLE) {
+         mongoVideoIdsDenied++;
+      }
+   }
+
+   cout << "Total mongo video IDs attempted: " << mongoVideoIdsObtained + mongoVideoIdsDenied << endl;
+   cout << "Mongo video IDs obtained: " << mongoVideoIdsObtained << endl;
+   cout << "Mongo video IDs denied: " << mongoVideoIdsDenied << endl;
+   cout << endl;
+   cout << "Total mongo videos with recommendations: " << mongoItemsWithRecommendations << endl;
+   cout << "Total recommendations for all mongo videos: " << mongoItemsTotalRecommendations << endl;
+}
+
+void printMissingVideos()
+{
+   for (unsigned int i = 0; i < gtVideos.size(); i++) {
+      if (gtVideos[i].status == UNAVAILABLE) {
+         cout << recVideoIDs[i].site << "," << recVideoIDs[i].id << endl;
+      }
+   }
+}
+
 int main(int argc, char **argv)
 {
    int status = 0;
@@ -240,15 +350,18 @@ int main(int argc, char **argv)
       goto mongoCleanup;
    } 
 
-   cout << "Connected to mongo." << endl;
+   // cout << "Connected to mongo." << endl;
 
    loadVideoMap(options.videoMapFile);
 
-   cout << "Video map loaded." << endl;
+   // cout << "Video map loaded." << endl;
 
    gtVideos.resize(recVideoIDs.size());
 
    addOrUpdateRecommendations(options.outputFile); 
+
+   // printVideoStats();
+   // printMissingVideos();
 
 mongoCleanup:
    mongo_destroy(&conn);
