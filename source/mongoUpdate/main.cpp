@@ -13,10 +13,48 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <assert.h>
 
 #include "lib/mongo-c-driver/src/mongo.h"
 
 using namespace std;
+
+// NOTE: not threadsafe
+class SimpleThrottle
+{
+public:
+   SimpleThrottle(unsigned int opsPerSec)
+   {
+      assert(opsPerSec < 1000000);
+      microSecondsBetweenOps.tv_sec = 0;
+      microSecondsBetweenOps.tv_usec = 1000000 / opsPerSec; 
+      setNextOpAllowed();
+   }
+
+   void throttle()
+   {
+      struct timeval currentTime;
+      gettimeofday(&currentTime, NULL);
+
+      if (timercmp(&currentTime, &nextOpAllowed, <)) {
+         struct timeval difference;
+         timersub(&nextOpAllowed, &currentTime, &difference);
+         usleep(difference.tv_sec * 1000000 + difference.tv_usec);
+      }
+      setNextOpAllowed();
+   } 
+
+private:
+   void setNextOpAllowed()
+   {
+      struct timeval currentTime;
+      gettimeofday(&currentTime, NULL);
+      timeradd(&currentTime, &microSecondsBetweenOps, &nextOpAllowed); 
+   }
+
+   struct timeval nextOpAllowed;
+   struct timeval microSecondsBetweenOps;
+};
 
 typedef struct Video
 {
@@ -163,6 +201,8 @@ void printItemWithRecs(const unsigned int item, vector<Recommendation> &recs)
 
 void updateItemInMongoWithRecs(const unsigned int item, vector<Recommendation> &recs)
 {
+   static SimpleThrottle throttle(1000); // 1000 ops/sec
+
    bson cond; 
    bson_init(&cond);
    bson_append_oid(&cond, "_id", &gtVideos[item].mongoId);
@@ -188,7 +228,8 @@ void updateItemInMongoWithRecs(const unsigned int item, vector<Recommendation> &
        bson_append_finish_object(&op);
    }
    bson_finish(&op);
-   
+  
+   throttle.throttle(); 
    int status = mongo_update(&conn, "gt-video.videos", &cond, &op, 0);
    if (status != MONGO_OK) {
       cout << "ERROR updating video." << endl;
