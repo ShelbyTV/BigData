@@ -1,0 +1,16 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+youtubeCommentsDataPrepEnv = env.Clone()
+
+youtubeCommentsDataPrepEnv.MergeFlags('-O6 -pthread -Wall')
+youtubeCommentsDataPrepEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+youtubeCommentsDataPrepEnv['CPPPATH'] = ['#/source', '#']
+
+youtubeCommentsDataPrep = youtubeCommentsDataPrepEnv.Program(target = 'youtubeCommentsDataPrep', source = sourceFiles)
+youtubeCommentsDataPrepInstall = youtubeCommentsDataPrepEnv.Install('#/bin', youtubeCommentsDataPrep)
+
+youtubeCommentsDataPrepEnv.Default(youtubeCommentsDataPrep)
+youtubeCommentsDataPrepEnv.Default(youtubeCommentsDataPrepInstall)

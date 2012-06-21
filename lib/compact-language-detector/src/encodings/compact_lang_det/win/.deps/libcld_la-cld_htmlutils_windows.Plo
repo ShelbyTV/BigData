@@ -1,0 +1,5 @@
+encodings/compact_lang_det/win/libcld_la-cld_htmlutils_windows.lo: \
+ encodings/compact_lang_det/win/cld_htmlutils_windows.cc \
+ encodings/compact_lang_det/win/cld_htmlutils.h
+
+encodings/compact_lang_det/win/cld_htmlutils.h:

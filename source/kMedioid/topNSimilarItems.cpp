@@ -1,0 +1,40 @@
+#include <iomanip>
+
+#include "topNSimilarItems.h"
+
+using namespace std;
+
+TopNSimilarItems::TopNSimilarItems(unsigned int maxItems)
+{
+   this->maxItems = maxItems;
+} 
+
+void TopNSimilarItems::add(double similarity, unsigned int similarItem)
+{
+   if (similarity < 0.000001) {
+      return;
+   }
+
+   this->similarItems.insert(pair<double, unsigned int>(similarity, similarItem));
+
+   if (this->similarItems.size() > this->maxItems) {
+      this->similarItems.erase(this->similarItems.begin());
+   }
+}
+
+void TopNSimilarItems::print(unsigned int originalItem, ostream &outputStream)
+{
+   typedef multimap<double, unsigned int>::const_reverse_iterator 
+      SimilarItemsRevIter;
+
+   for (SimilarItemsRevIter iter = this->similarItems.rbegin();
+        iter != this->similarItems.rend();
+        ++iter) 
+   {
+      outputStream << originalItem << " ";
+      outputStream << iter->second << " ";
+      outputStream << setiosflags(ios::fixed) << setprecision(3);
+      outputStream << iter->first << endl;
+   }
+}
+

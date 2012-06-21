@@ -1,0 +1,16 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+mongoCommentsGetterEnv = env.Clone()
+
+mongoCommentsGetterEnv.MergeFlags('-O6 -pthread -Wall -Werror -DMONGO_HAVE_UNISTD -static -DCLD_WINDOWS')
+mongoCommentsGetterEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+mongoCommentsGetterEnv['CPPPATH'] = ['#/source', '#', '#/lib/compact-language-detector/src']
+
+mongoCommentsGetter = mongoCommentsGetterEnv.Program(target = 'mongoCommentsGetter', source = sourceFiles + ['#/build/mongo-c-driver/libmongoc.a'] + ['#/build/compact-language-detector/libcld.so'])
+mongoCommentsGetterInstall = mongoCommentsGetterEnv.Install('#/bin', mongoCommentsGetter)
+
+mongoCommentsGetterEnv.Default(mongoCommentsGetter)
+mongoCommentsGetterEnv.Default(mongoCommentsGetterInstall)

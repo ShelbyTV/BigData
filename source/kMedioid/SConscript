@@ -1,0 +1,19 @@
+sourceFiles = Split("""
+                       main.cpp
+                       logLikelihood.cpp
+                       kMedioid.cpp
+                       topNSimilarItems.cpp
+                    """)
+
+Import('env')
+kMedioidEnv = env.Clone()
+
+kMedioidEnv.MergeFlags('-O6 -pthread -Wall -Werror')
+kMedioidEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+kMedioidEnv['CPPPATH'] = '#/source'
+
+kMedioid = kMedioidEnv.Program(target = 'kMedioid', source = sourceFiles)
+kMedioidInstall = kMedioidEnv.Install('#/bin', kMedioid)
+
+kMedioidEnv.Default(kMedioid)
+kMedioidEnv.Default(kMedioidInstall)
