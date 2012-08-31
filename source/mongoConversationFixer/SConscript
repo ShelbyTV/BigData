@@ -1,0 +1,16 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+mongoConversationFixerEnv = env.Clone()
+
+mongoConversationFixerEnv.MergeFlags('-O6 -pthread -Wall -Werror -DMONGO_HAVE_UNISTD -static')
+mongoConversationFixerEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+mongoConversationFixerEnv['CPPPATH'] = ['#/source', '#']
+
+mongoConversationFixer = mongoConversationFixerEnv.Program(target = 'mongoConversationFixer', source = sourceFiles + ['#/build/mongo-c-driver/libmongoc.a'])
+mongoConversationFixerInstall = mongoConversationFixerEnv.Install('#/bin', mongoConversationFixer)
+
+mongoConversationFixerEnv.Default(mongoConversationFixer)
+mongoConversationFixerEnv.Default(mongoConversationFixerInstall)
