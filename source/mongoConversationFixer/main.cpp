@@ -92,9 +92,9 @@ bool connectToMongoAndAuthenticate()
    int status_convo = mongo_replset_connect(&conn_convo);
    printMongoConnectionErrorMessage(status_convo, conn_convo);
 
-   mongo_replset_init(&conn_convo, "gtRollFrame");
-   mongo_replset_add_seed(&conn_convo, "gt-db-roll-frame-s0-a", 27017);
-   mongo_replset_add_seed(&conn_convo, "gt-db-roll-frame-s0-b", 27017);
+   mongo_replset_init(&conn_frame, "gtRollFrame");
+   mongo_replset_add_seed(&conn_frame, "gt-db-roll-frame-s0-a", 27017);
+   mongo_replset_add_seed(&conn_frame, "gt-db-roll-frame-s0-b", 27017);
 
    int status_frame = mongo_replset_connect(&conn_frame);
    printMongoConnectionErrorMessage(status_frame, conn_frame);

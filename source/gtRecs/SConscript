@@ -1,0 +1,16 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+gtRecsEnv = env.Clone()
+
+gtRecsEnv.MergeFlags('-O6 -pthread -Wall -Werror -DMONGO_HAVE_UNISTD -static')
+gtRecsEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+gtRecsEnv['CPPPATH'] = ['#/source', '#']
+
+gtRecs = gtRecsEnv.Program(target = 'gtRecs', source = sourceFiles + ['#/build/mongo-c-driver/libmongoc.a'])
+gtRecsInstall = gtRecsEnv.Install('#/bin', gtRecs)
+
+gtRecsEnv.Default(gtRecs)
+gtRecsEnv.Default(gtRecsInstall)

@@ -1,0 +1,16 @@
+sourceFiles = Split("""
+                       main.cpp
+                    """)
+
+Import('env')
+gtMongoVideoRollDataPrepEnv = env.Clone()
+
+gtMongoVideoRollDataPrepEnv.MergeFlags('-O6 -pthread -Wall -Werror -DMONGO_HAVE_UNISTD -static')
+gtMongoVideoRollDataPrepEnv['CXXFLAGS'] = ['-std=c++0x'] # works around bug in scons MergeFlags, fixed in later versions of scons
+gtMongoVideoRollDataPrepEnv['CPPPATH'] = ['#/source', '#']
+
+gtMongoVideoRollDataPrep = gtMongoVideoRollDataPrepEnv.Program(target = 'gtMongoVideoRollDataPrep', source = sourceFiles + ['#/build/mongo-c-driver/libmongoc.a'])
+gtMongoVideoRollDataPrepInstall = gtMongoVideoRollDataPrepEnv.Install('#/bin', gtMongoVideoRollDataPrep)
+
+gtMongoVideoRollDataPrepEnv.Default(gtMongoVideoRollDataPrep)
+gtMongoVideoRollDataPrepEnv.Default(gtMongoVideoRollDataPrepInstall)
