@@ -1,6 +1,6 @@
 #BigData
 
-###Overview
+##Overview
 
 The Shelby database has a lot of valuable data. Code contained in this repository aims to process that data into a usable form.
 
@@ -8,11 +8,11 @@ Currently the main production usage is generating social video recommendations b
 
 All of this code was written on `nos-db-s0-d`, and it may have dependencies on locally installed packages (especially for EC2 functionality). An attempt will be made to name these in this document, but if any are missed, look on `nos-db-s0-d` for clues.
 
-### Code
+## Code
 
 Most of the heavy lifting code is written in C++0x (C++ with native thread, mutex, etc. support -- the next gen C++). There are some old scripts in python from various experiments, but python was generally too slow to do much data processing. The scripts for executing on EC2 are just shell scripts.
 
-#### Building
+### Building
 
 The top-level BigData directory contains a SConstruct file that can be used to build the C++ programs and also copy scripts into the output bin directory.
 
@@ -20,7 +20,7 @@ To build, you should just need to type `scons`
 
 To completely clean up all the built code, you should be able to run `scons -c`
 
-### Video Recommendations
+## Video Recommendations
 
 The basic steps for generating the social video recommendations (which power Shelby Genius) are outlined below in full detail.
 
@@ -32,7 +32,7 @@ The current approach is using a custom C++ program that runs on a single large A
 
 The other key item to note is that we're using Ted Dunning's log likelihood similarity function, which seemed to function best in practice. This algorithm compares items by also taking into account the overall frequency/likelihood of each item, which helps mitigate the effect of viral videos being shared (so they're not recommended for every video). The code for calculating log likelihood was ported into C++ from the Java implementation in mahout.
 
-#### Acquire Data
+### Acquire Data
 
 After running `scons`, a program will exist at `bin/gtMongoVideoRollDataPrep`. This is used to capture all the necessary data regarding social video shares from the frames database. It must be run from a machine that has access to the rolls-frames database.
 
@@ -44,7 +44,7 @@ This command will output 3 .csv files: `videos.csv`, `users.csv`, and `broadcast
 
 `broadcasts.csv` contains a list of pairs of video and user integers, with each line indicating an instance of the video on a particular roll.
 
-#### Filter
+### Filter
 
 After running `scons`, a program will exist at `bin/csvPrune`. This is used to filter out videos (items) that have not been shared frequently and rolls (users) that have not shared many videos (items).
 
@@ -52,7 +52,7 @@ The default threshold is 5 for both instances.
 
 This command takes as input by default the above `broadcasts.csv` file and outputs a file named `input.csv`. Confusing, apologies… This file, `input.csv` is the sole input file for the actual item-based filtering algorithm.
 
-#### Generate Recommendations
+### Generate Recommendations
 
 After running `scons`, a program will exist at `bin/ibf`. This is the program that actually implements the item-based filtering algorithm. This is the most complicated program in BigData. By default it takes as input a file named `input.csv` (generated via the above `csvPrune` application) and generates a file named `output` that contains item-to-item (video-to-video) recommendations (and associated scores).
 
@@ -77,13 +77,13 @@ Currently this script takes a little less than an hour to run (once a spot insta
 
 **ALSO NOTE:** The spot instance pricing in the `bin/ibfAws.sh` script may need to be adjusted as the AWS spot instance market changes.
 
-#### Update Video Database
+### Update Video Database
 
 After running `scons`, a program will exist at `bin/gtMongoUpdate`. This program takes in the `ibf` `output` file as well as the original `users.csv` and `videos.csv` files, and updates the recommendations in the production mongo databases.
 
 This program must be run from a machine that has access to the production mongo databases.
 
-### Language Detection
+## Language Detection
 
 Inside `lib/compact-language-detector` is source code that was downloaded that originally came from Google Chrome. It uses `make` to be built, so it couldn't be easily integrated into the `scons` build infrastructure.
 
@@ -93,18 +93,18 @@ The top-level `Sconstruct` file has some commented out lines for building `mongo
 
 However, the code in `source/mongoCommentsGetter` shows how the compact language detector library can be used to detect various languages in share comments. In general it works fairly well and fairly quickly and can be used to identify a lot of comments that are obviously one language or another.
 
-### Other Future Applications
+## Other Future Applications
 
 Mostly the code in the BigData repository shows an example of how to get a lot of data from the Shelby database and process it in hours (not days). Ruby / python / etc. can just be too slow to get things done.
 
 Using the C++ code in BigData as an example (and even just re-using `ibf` in different ways) could help with the following:
 
-* users-to-follow recommendations
-* video sharing statistics
-* trending topics
+- users-to-follow recommendations
+- video sharing statistics
+- trending topics
 
 
-### What Belongs In BigData
+## What Belongs In BigData
 
 The intention is that the code in this repository remain focused on processing Shelby database data and turning it into usable information.
 
