@@ -38,11 +38,9 @@ After running `scons`, a program will exist at `bin/gtMongoVideoRollDataPrep`. T
 
 This command will output 3 .csv files: `videos.csv`, `users.csv`, and `broadcasts.csv`. These will be used as input for the following commands.
 
-`videos.csv` contains the mapping from integers to mongo video IDs.
-
-`users.csv` contains the mapping from integers to mongo roll IDs. In the past this used to be actual users, hence the filename.
-
-`broadcasts.csv` contains a list of pairs of video and user integers, with each line indicating an instance of the video on a particular roll.
+- `videos.csv` contains the mapping from integers to mongo video IDs.
+- `users.csv` contains the mapping from integers to mongo roll IDs. In the past this used to be actual users, hence the filename.
+- `broadcasts.csv` contains a list of pairs of video and user integers, with each line indicating an instance of the video on a particular roll.
 
 ### Filter
 
