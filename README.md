@@ -81,6 +81,8 @@ After running `scons`, a program will exist at `bin/gtMongoUpdate`. This program
 
 This program must be run from a machine that has access to the production mongo databases.
 
+NB: This program will pound `gtVideo` (creating significant replication lag, page faults, lock %), so you may want to run it off-peak.
+
 ## Language Detection
 
 Inside `lib/compact-language-detector` is source code that was downloaded that originally came from Google Chrome. It uses `make` to be built, so it couldn't be easily integrated into the `scons` build infrastructure.
