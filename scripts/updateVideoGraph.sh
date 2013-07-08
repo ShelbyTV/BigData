@@ -8,7 +8,7 @@
 # You should run this script from within the folder where you want the
 # intermediate input and output files to be placed, usually something
 # like
-#     nos@nos-db-s0-d:~/bigdata_do_not_delete/XX.XX.XXXX
+#     nos@nos-db-s0-d:~/bigdata_do_not_delete/XXXX.XX.XX
 # where the X part is a folder you've created and named after the
 # date you are running the recommendation generator
 
