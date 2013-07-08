@@ -1,3 +1,4 @@
 Import('env')
 env.Default(env.Install('#/bin', 'ibfAws.sh'))
+env.Default(env.Install('#/bin', 'updateVideoGraph.sh'))
 env.Default(env.Install('#/bin', 'youtubeCommentersDownload/youtubeCommentersDownload.py'))
