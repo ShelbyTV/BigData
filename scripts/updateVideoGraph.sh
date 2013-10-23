@@ -8,30 +8,35 @@
 # You should run this script from within the folder where you want the
 # intermediate input and output files to be placed, usually something
 # like
-#     nos@nos-db-s0-d:~/bigdata_do_not_delete/XXXX.XX.XX
-# where the X part is a folder you've created and named after the
-# date you are running the recommendation generator
+#     nos@nos-db-s0-d:~/bigdata_do_not_delete
+# The script will create a folder within that folder named after the
+# date the script is run, like
+#     folder_script_is_run_from/YYYY-MM-DD
+
+echo 'Making new directory'
+d=`date +%Y-%m-%d`
+mkdir $d
 
 echo 'Update Video Graph: START Getting video data from mongo'
 
-gtMongoVideoRollDataPrep
+(cd $d && gtMongoVideoRollDataPrep)
 
 echo 'Update Video Graph: COMPLETE Getting video data from mongo'
 
 echo 'Update Video Graph: START Filter out videos and users with too few shares'
 
-csvPrune
+(cd $d && csvPrune)
 
 echo 'Update Video Graph: COMPLETE Filter out videos and users with too few shares'
 
 echo 'Update Video Graph: START Item based filtering on AWS'
 
-ibfAws.sh
+(cd $d && ibfAws.sh)
 
 echo 'Update Video Graph: COMPLETE Item based filtering on AWS'
 
 echo 'Update Video Graph: START Write new video recommendations into mongo'
 
-gtMongoUpdate
+(cd $d && gtMongoUpdate)
 
 echo 'Update Video Graph: COMPLETE Write new video recommendations into mongo'
