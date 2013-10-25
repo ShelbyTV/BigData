@@ -16,7 +16,7 @@
 export date=`date +%Y-%m-%d`
 
 # cleanup old export folders from earlier dates
-./Bigdata/scripts/cleanupOldFiles.sh
+./BigData/scripts/cleanupOldFiles.sh
 
 echo 'Making new directory'
 mkdir $date
