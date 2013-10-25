@@ -1,0 +1,49 @@
+
+YouTube Embedding & Search 
+
+some way to pay $ to improve ranking within YT
+alternate YT metadata DB
+
+why does embedded youtube player suck?
+ - post roll suggested video crap
+ - annotations can be annoying
+ - ads are annoying (can't do much about this)
+ - youtube comments are only available on youtube
+ - (comments on different sites, hard to index all the text related to a video)
+ - as owner of site, i don't get any video analytics
+
+questions 
+ - how could we get all backlinks for a youtube video
+ - how can we do this on mobile (iOS lib and HTML)?  html5 video?
+
+analytics pitch
+ - for people who don't make the video, but just link to it
+ - use the Shelby embedded player, and then can log in to Shelby video analytics to see video usage on your site
+
+
+Video Thumbnails
+
+http://www.thumbnailme.com/
+http://moviethumbnail.sourceforge.net
+
+Meme builder for video thumbnails
+search aspects (google image search flooding)
+social aspects (pinterest, imgur)
+possibly bloggers, etc. might want still images
+
+
+other entirely separate products:
+ - iso-iso rolls
+ - embed stuff
+ - short linking w/ read receipts for individuals
+
+Interesting stuff within Shelby:
+ - "add to friends queue, w/ permission, w/ read receipt"
+
+
+
+URLs with Time
+
+short link -> created link with time component hash -> verified in site
+
+
